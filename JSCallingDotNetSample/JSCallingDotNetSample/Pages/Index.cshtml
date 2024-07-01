@@ -1,0 +1,214 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div>
+    <span> ref : https://www.codeproject.com/Articles/5382292/Csharp-in-Browser-via-WebAssembly-without-Blazor</span>
+</div>
+<br />
+<div id="out"
+     style="font-size:30px">
+    <div style="font-size:30px" >
+        Please wait while Web Assembly is Loading!
+    </div>
+</div>
+<br />
+<input type="file" id="test" >
+<br />
+<button  type="button" onclick="toc();">print</button>
+<br/>
+
+<img id="myimage"/>
+<br />
+<canvas id="mycanvas" width="2048" height="1536" style="border:1px solid #000000;">
+</canvas>
+
+<br />
+<canvas id="mycanvas2" width="800" height="600" style="border:1px solid #000000;">
+</canvas>
+
+<script>
+    const module = {};
+</script>
+
+<!-- https://stackoverflow.com/questions/69888029/how-to-call-a-function-declared-in-a-javascript-module-type-module-from-an-htm -->
+<script type="module">
+
+    import { dotnet } from './_framework/dotnet.js'
+
+const is_browser = typeof window != "undefined";
+if (!is_browser) throw new Error(`Expected to be running in a browser`);
+
+// get the objects needed to run exported C# code
+const { getAssemblyExports, getConfig } =
+    await dotnet.create();
+
+// config contains the web-site configurations
+const config = getConfig();
+
+// exports contain the methods exported by C#
+const exports = await getAssemblyExports(config.mainAssemblyName);
+
+// we call the exported C# method Greeter.JSInteropCallsContainer.Greet
+// passing to it an array of names
+const text = exports.Greeter.JSInteropCallsContainer.Greet(['Nick', 'Joe', 'Bob']);
+
+const text2 = exports.Greeter.JSInteropCallsContainer.LanczosWasm("mary");
+
+export const sampleFunction = () => {
+    alert("Hello I'm sample");
+    alert(text2);
+
+}
+
+export function test22( image_bytes , org_w , org_h , new_w ,new_h ){
+
+    //alert(org_w + "　"+org_h);
+
+    return exports.Greeter.JSInteropCallsContainer.read_array(image_bytes , org_w , org_h , new_w ,new_h );
+}
+
+// logging the result of Gre
+    //import { sampleFunction } from "~/wasmRunner.js";
+    window.sampleFunction=sampleFunction;
+
+     window.test22=test22;
+
+</script>
+
+
+
+<script>
+
+//
+
+    function $id(id) {
+        return document.getElementById(id);
+    }
+
+    function encode (input) {
+        //https://stackoverflow.com/questions/11089732/display-image-from-blob-using-javascript-and-websockets
+    var keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+    var output = "";
+    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+    var i = 0;
+
+    while (i < input.length) {
+        chr1 = input[i++];
+        chr2 = i < input.length ? input[i++] : Number.NaN; // Not sure if the index 
+        chr3 = i < input.length ? input[i++] : Number.NaN; // checks are needed here
+
+        enc1 = chr1 >> 2;
+        enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+        enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+        enc4 = chr3 & 63;
+
+        if (isNaN(chr2)) {
+            enc3 = enc4 = 64;
+        } else if (isNaN(chr3)) {
+            enc4 = 64;
+        }
+        output += keyStr.charAt(enc1) + keyStr.charAt(enc2) +
+                  keyStr.charAt(enc3) + keyStr.charAt(enc4);
+    }
+    return output;
+}
+
+
+var ctx = $id("mycanvas").getContext('2d');
+
+var ctx2 = $id("mycanvas2").getContext('2d');
+
+
+function toc (){
+    //https://levelup.gitconnected.com/how-to-extract-the-colour-of-a-pixel-using-javascript-and-html-5-f3661f54473
+
+     // $id("myimage").src = 'data:image/jpg;base64,'+encode(array) ;
+     ctx.drawImage(myimage,0,0);
+
+     //alert( mycanvas.width);
+
+     var imgData = ctx.getImageData(0, 0, mycanvas.width, mycanvas.height);
+    // data = imgData.data;
+
+     var ret_bytes_array = test22( new Uint8Array( imgData.data.buffer ) ,2048,1536,800,600   );
+
+
+  const imageData2 = ctx2.getImageData(0, 0, mycanvas2.width, mycanvas2.height);
+  const data = imageData2.data;
+
+  alert("length ret_bytes_array " + ret_bytes_array.length  ) ;
+
+  for (let i = 0; i < data.length; i++) {
+    data[i] = ret_bytes_array[i] ;
+  }
+  ctx2.putImageData(imageData2, 0, 0);
+
+
+
+     alert( "finish " +  ret_bytes_array[1] );
+}
+
+function myFunction(e) {
+
+    //test22("xxxxxxxx");
+
+    //sampleFunction();
+    //alert( module.greet);
+
+    let [file] = e.target.files;
+
+    var reader = new FileReader();
+
+     reader.readAsDataURL(file);
+
+     //reader.readAsDataURL(file);
+
+     //reader.readAsArrayBuffer(file);   
+
+    reader.onloadend = async function (e) {
+        //console.log('filereader', e.target.result);
+
+
+      //  var array = new Uint8Array(e.target.result);
+
+        //var base64Data = btoa(String.fromCharCode.apply(null, array));
+
+       // var str = String.fromCharCode.apply(null, array);
+        //var image = document.createElement('img');
+        $id("myimage").src = e.target.result ; //'data:image/jpg;base64,'+encode(array) ;
+
+
+
+       // ctx.drawImage(myimage,0,0);
+
+
+        //var image = document.createElement('img');
+        //$id("myimage").src = 'data:image/jpeg;base64,' +btoa(array) ;
+
+
+        //https://bun.sh/guides/binary/arraybuffer-to-typedarray
+        //alert(test22( new Uint8Array( e.target.result)  ));
+        //new Uint8Array( e.target.result)
+
+      // var text2 = exports.Greeter.JSInteropCallsContainer.Greet(['Nick', 'Joe', 'Bob']); 
+
+      //alert("read finish !");// + text2 ); 
+
+    } 
+}
+
+//uint8array 印到caves
+//https://stackoverflow.com/questions/13950865/javascript-render-png-stored-as-uint8array-onto-canvas-element-without-data-uri
+
+    var test_input = $id("test");
+    test_input.addEventListener("change", myFunction, false);
+
+
+document.getElementById("out").innerText = "donet loaded!";
+
+
+
+</script>
